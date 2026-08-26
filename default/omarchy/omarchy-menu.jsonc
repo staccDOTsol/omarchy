@@ -133,6 +133,14 @@
   "setup.network.dns.google": {"icon":"󰊭","label":"Google","checked":"[[ \"$(omarchy-dns)\" == \"Google\" ]]","action":"omarchy-dns Google"},
   "setup.network.dns.custom": {"icon":"","label":"Custom","checked":"[[ \"$(omarchy-dns)\" == \"Custom\" ]]","action":"omarchy-launch-floating-terminal-with-presentation 'omarchy-dns Custom'"},
   "setup.network.qr": {"icon":"󰐲","label":"QR Code","aliases":["wifi-qr"],"when":"[[ $(omarchy-network-status) == wifi* ]]","action":"omarchy-shell shell summon omarchy.wifiqr"},
+  // openzoo wallet. Gated on the CLI being present, so it is invisible to anyone
+  // who has not chosen the openzoo agent. Every entry is READ-ONLY: balances,
+  // receiving addresses, bound corpora. Nothing here spends, and no key or seed
+  // is ever printed.
+  "setup.openzoo": {"icon":"󰚩","label":"openzoo","when":"omarchy-cmd-present openzoo"},
+  "setup.openzoo.balance": {"icon":"󰯅","label":"Balance","action":"omarchy-launch-floating-terminal-with-presentation 'openzoo balance'"},
+  "setup.openzoo.address": {"icon":"󰇰","label":"Deposit Address","action":"omarchy-launch-floating-terminal-with-presentation 'openzoo address'"},
+  "setup.openzoo.contexts": {"icon":"󰋑","label":"Bound Corpora","action":"omarchy-launch-floating-terminal-with-presentation 'openzoo contexts'"},
   "setup.default": {"icon":"","label":"Defaults","aliases":["default","defaults"]},
   "setup.default.agent": {"icon":"󰚩","label":"Agent","title":"Default Agent"},
   "setup.default.agent.agy": {"icon":"󰫢","label":"Antigravity","checked":"[[ \"$(omarchy-default-agent)\" == \"agy\" ]]","action":"omarchy-default-agent agy"},

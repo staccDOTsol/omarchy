@@ -248,6 +248,20 @@ assertDeepEqual(
   ['Antigravity', 'Claude', 'Codex', 'Copilot', 'Crush', 'Grok', 'omp', 'OpenCode', 'openzoo', 'Ori', 'Pi'],
   'menu sorts coding agents alphabetically'
 )
+const openzooGroup = defaultById['setup.openzoo']
+assert(
+  openzooGroup && openzooGroup.when === 'omarchy-cmd-present openzoo' && openzooGroup.aliases.length === 0,
+  'openzoo wallet group is gated on the CLI being present and carries no aliases'
+)
+assert(
+  ['balance', 'address', 'contexts'].every(cmd => {
+    const entry = defaultById[`setup.openzoo.${cmd}`]
+    return entry
+      && entry.action === `omarchy-launch-floating-terminal-with-presentation 'openzoo ${cmd}'`
+      && !entry.when
+  }),
+  'every openzoo wallet entry is a read-only CLI call in a floating terminal'
+)
 const expectedDefaults = {
   browser: ['Chromium', 'Chrome', 'Brave', 'Brave Origin', 'Edge', 'Firefox', 'Zen'],
   terminal: ['Alacritty', 'Foot', 'Ghostty', 'Kitty'],
