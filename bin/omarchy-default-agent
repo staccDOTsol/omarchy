@@ -37,13 +37,16 @@ copilot | github-copilot) agent="copilot"; name="GitHub Copilot" ;;
 # Every other agent here is a vendor CLI that stops on first launch and asks for
 # an API key. openzoo is Claude Code pointed at a pay-per-call gateway instead:
 # no account, no key, no signup wall on a fresh install.
-# `@latest` is deliberate, and openzoo is the one agent here that needs it.
-# `mise use -g npm:openzoo` resolves once and PINS that version in the global
-# config, so a machine that installed it weeks ago keeps running weeks-old
-# code forever — and this CLI carries the wallet and the payment path, where
-# stale means paying against a protocol shape the gateway has since moved on
-# from. Asking for `latest` re-resolves on every selection instead.
-openzoo) agent="openzoo"; name="openzoo"; agent_package="npm:openzoo@latest" ;;
+# PLAIN `npm:openzoo`, NOT `@latest`. Pinning the tag here looks like it keeps
+# users current and instead breaks the agent outright: the `mise where` guard
+# below tests the EXACT spec, so `npm:openzoo@latest` never matches an install
+# recorded as `npm:openzoo`, falls through to `mise use`, and that PROMPTS —
+# with no TTY under this script the prompt is auto-aborted:
+#   mise ERROR Failed to install npm:openzoo@latest: user aborted `mise add openzoo`
+#   Could not set openzoo as the default coding agent
+# Upgrading is `mise upgrade npm:openzoo`, which is a user action, not something
+# to smuggle into agent selection.
+openzoo) agent="openzoo"; name="openzoo"; agent_package="npm:openzoo" ;;
 *)
   echo "Usage: omarchy-default-agent <pi|omp|opencode|ori|claude|codex|grok|agy|copilot|crush|openzoo>"
   exit 1
