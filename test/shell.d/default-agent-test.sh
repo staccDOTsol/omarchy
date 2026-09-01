@@ -464,6 +464,7 @@ assert_launch crush crush run "Review this project"
 assert_launch grok grok --permission-mode bypassPermissions -- "Review this project"
 assert_launch agy agy --dangerously-skip-permissions --prompt-interactive "Review this project"
 assert_launch copilot copilot --allow-all --interactive "Review this project"
+assert_launch openzoo npx --yes openzoo@latest claude --permission-mode auto -- "Review this project"
 pass "agent launcher adapts initial prompts for every supported agent"
 
 assert_bypass pi pi
@@ -476,6 +477,7 @@ assert_bypass crush crush --yolo
 assert_bypass grok grok --permission-mode bypassPermissions
 assert_bypass agy agy --dangerously-skip-permissions
 assert_bypass copilot copilot --allow-all
+assert_bypass openzoo npx --yes openzoo@latest claude --permission-mode auto
 pass "agent launcher skips permission prompts for every supported agent"
 
 printf '%s\n' "opencode" >"$agent_file"

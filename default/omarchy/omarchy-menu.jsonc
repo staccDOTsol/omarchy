@@ -137,10 +137,10 @@
   // who has not chosen the openzoo agent. Every entry is READ-ONLY: balances,
   // receiving addresses, bound corpora. Nothing here spends, and no key or seed
   // is ever printed.
-  "setup.openzoo": {"icon":"󰚩","label":"openzoo","when":"omarchy-cmd-present openzoo"},
-  "setup.openzoo.balance": {"icon":"󰯅","label":"Balance","action":"omarchy-launch-floating-terminal-with-presentation 'openzoo balance'"},
-  "setup.openzoo.address": {"icon":"󰇰","label":"Deposit Address","action":"omarchy-launch-floating-terminal-with-presentation 'openzoo address'"},
-  "setup.openzoo.contexts": {"icon":"󰋑","label":"Bound Corpora","action":"omarchy-launch-floating-terminal-with-presentation 'openzoo contexts'"},
+  "setup.openzoo": {"icon":"󰚩","label":"openzoo","when":"[[ \"$(omarchy-default-agent)\" == \"openzoo\" ]]"},
+  "setup.openzoo.balance": {"icon":"󰯅","label":"Balance","action":"omarchy-launch-floating-terminal-with-presentation 'npx --yes openzoo@latest balance'"},
+  "setup.openzoo.address": {"icon":"󰇰","label":"Deposit Address","action":"omarchy-launch-floating-terminal-with-presentation 'npx --yes openzoo@latest address'"},
+  "setup.openzoo.contexts": {"icon":"󰋑","label":"Bound Corpora","action":"omarchy-launch-floating-terminal-with-presentation 'npx --yes openzoo@latest contexts'"},
   "setup.default": {"icon":"","label":"Defaults","aliases":["default","defaults"]},
   "setup.default.agent": {"icon":"󰚩","label":"Agent","title":"Default Agent"},
   "setup.default.agent.agy": {"icon":"󰫢","label":"Antigravity","checked":"[[ \"$(omarchy-default-agent)\" == \"agy\" ]]","action":"omarchy-default-agent agy"},
