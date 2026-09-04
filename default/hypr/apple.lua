@@ -22,9 +22,5 @@ if o.shell_succeeds(o.shell_quote(apple_soc)) and not o.shell_succeeds(o.shell_q
       -- Direct scanout needs a real display driver to hand buffers to.
       direct_scanout = false,
     },
-    misc = {
-      -- Repaint only when something changed; llvmpipe pays per frame.
-      vfr = true,
-    },
   })
 end
