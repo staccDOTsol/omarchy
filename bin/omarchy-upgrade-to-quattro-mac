@@ -367,7 +367,9 @@ main() {
   backup_user_config
   switch_checkout_to_quattro
   validate_quattro_tree
+  source "$checkout/install/helpers/hyprland-stack.sh"
   ensure_arm_package_repo
+  ensure_hyprland_stack
   install_quattro_packages
   wire_system_paths
   update_bashrc

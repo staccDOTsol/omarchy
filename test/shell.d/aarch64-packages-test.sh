@@ -56,14 +56,24 @@ done
 pass "every shipped pacman config offers the Omarchy ARM repo"
 
 # The shipped config only reaches /etc during post-install, which runs after the
-# package set. Adding the repo any later leaves herdr building zig from source
-# for two hours, so the order in main() is the whole point of the fix.
+# built omarchy packages and the default set. Adding the repo any later leaves
+# `pacman -U` of omarchy unable to see a current extra db (hyprland's
+# libaquamarine.so pin) and leaves herdr building zig from source for two hours.
 repo_call=$(grep -n '^  ensure_arm_package_repo$' "$ROOT/install.sh" | cut -d: -f1)
+stack_call=$(grep -n '^  ensure_hyprland_stack$' "$ROOT/install.sh" | cut -d: -f1)
+omarchy_call=$(grep -n '^  install_omarchy_packages$' "$ROOT/install.sh" | cut -d: -f1)
 set_call=$(grep -n '^  install_default_package_set$' "$ROOT/install.sh" | cut -d: -f1)
-[[ -n $repo_call && -n $set_call ]] || fail "the installer adds the ARM repo and installs the set"
+[[ -n $repo_call && -n $stack_call && -n $omarchy_call && -n $set_call ]] ||
+  fail "the installer adds the ARM repo, repairs Hyprland, and installs packages"
+(( repo_call < stack_call )) ||
+  fail "the ARM repo is added before the Hyprland stack is checked"
+(( stack_call < omarchy_call )) ||
+  fail "the Hyprland stack is repaired before pacman -U of the built omarchy packages"
 (( repo_call < set_call )) ||
   fail "the ARM repo is added before the default package set is installed"
-pass "the ARM repo is added before the default package set is installed"
+grep -qF 'install/helpers/hyprland-stack.sh' "$ROOT/install.sh" ||
+  fail "the installer sources the Hyprland stack helper"
+pass "the ARM repo and Hyprland stack are ready before omarchy packages install"
 
 # The Quattro upgrade has the same trap with a twist: a 3.x machine's
 # /etc/pacman.conf predates the ARM repo entirely, and installing packages
@@ -71,12 +81,17 @@ pass "the ARM repo is added before the default package set is installed"
 # stacks (#208). The upgrade must wire the repo in from its own fresh checkout
 # before the package pass.
 repo_call=$(grep -n '^  ensure_arm_package_repo$' "$ROOT/bin/omarchy-upgrade-to-quattro-mac" | cut -d: -f1)
+stack_call=$(grep -n '^  ensure_hyprland_stack$' "$ROOT/bin/omarchy-upgrade-to-quattro-mac" | cut -d: -f1)
 checkout_call=$(grep -n '^  switch_checkout_to_quattro$' "$ROOT/bin/omarchy-upgrade-to-quattro-mac" | cut -d: -f1)
 set_call=$(grep -n '^  install_quattro_packages$' "$ROOT/bin/omarchy-upgrade-to-quattro-mac" | cut -d: -f1)
-[[ -n $repo_call && -n $checkout_call && -n $set_call ]] ||
-  fail "the upgrade switches checkout, adds the ARM repo, and installs the set"
+[[ -n $repo_call && -n $stack_call && -n $checkout_call && -n $set_call ]] ||
+  fail "the upgrade switches checkout, adds the ARM repo, repairs Hyprland, and installs the set"
 (( checkout_call < repo_call )) ||
   fail "the ARM repo block is read from the Quattro checkout, so switch first"
+(( repo_call < stack_call )) ||
+  fail "the upgrade refreshes repos before repairing the Hyprland stack"
+(( stack_call < set_call )) ||
+  fail "the upgrade repairs the Hyprland stack before installing the Quattro set"
 (( repo_call < set_call )) ||
   fail "the upgrade adds the ARM repo before installing the Quattro set"
 pass "the Quattro upgrade adds the ARM repo before installing packages"

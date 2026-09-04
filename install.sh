@@ -12,6 +12,8 @@ readonly checkout="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly package_output="$checkout/build-output"
 readonly asahi_alarm_key="12CE6799A94A3F1B5DDFFE88F576553597FB8FEB"
 
+source "$checkout/install/helpers/hyprland-stack.sh"
+
 # gum is how the rest of Omarchy talks to people, but it arrives with the
 # omarchy package well into this script, so every helper falls back to plain
 # output until ensure_gum has run.
@@ -140,8 +142,10 @@ ensure_asahi_alarm_keyring() {
 
 # Compared in bash rather than with grep against a process substitution, which
 # ugrep answers differently from GNU grep.
-# The shipped pacman.conf only lands during post-install, after the package set
-# is already installed, so the repo has to be added now: otherwise herdr builds
+# The shipped pacman.conf only lands during post-install, after the built
+# omarchy packages and the default set are already installed. Add the ARM repo
+# before either: omarchy depends on hyprland (which extra can leave
+# unresolvable until we see a current db), and without the repo herdr builds
 # zig0.15 from source for two hours and aarch64 rejects it anyway.
 ensure_arm_package_repo() {
   if ! grep -q '^\[omarchy-aarch64\]' /etc/pacman.conf; then
@@ -285,9 +289,10 @@ main() {
   ensure_gum
   ensure_aur_helper
   ensure_package_sources
+  ensure_arm_package_repo
+  ensure_hyprland_stack
   build_omarchy_packages
   install_omarchy_packages
-  ensure_arm_package_repo
   install_default_package_set
   seed_user_defaults
   run_system_setup
