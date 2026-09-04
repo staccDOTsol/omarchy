@@ -39,6 +39,9 @@ EOF
 )
 [[ $parsed == $'13\n14' ]] ||
   fail "sonames are parsed from pacman -Si text" "got: $(printf '%q' "$parsed")"
+empty=$(hyprland_stack_parse_aquamarine_so </dev/null) ||
+  fail "an empty sync listing is not a pipeline failure"
+[[ -z $empty ]] || fail "an empty listing yields no sonames" "got: $(printf '%q' "$empty")"
 pass "sonames are parsed from pacman -Si text"
 
 # The live failure: extra hyprland 0.56.1-3 wants so=13, extra aquamarine

@@ -14,16 +14,21 @@ aquamarine_version_for_so() {
 }
 
 # Read libaquamarine.so sonames from pacman -Si style text on stdin.
+# Always succeeds: no match is an empty list, not a pipeline failure under
+# `set -o pipefail` (grep exits 1 when it finds nothing).
 hyprland_stack_parse_aquamarine_so() {
-  grep -oE 'libaquamarine\.so=[0-9]+-64' | sed -E 's/libaquamarine\.so=([0-9]+)-64/\1/' | sort -un
+  grep -oE 'libaquamarine\.so=[0-9]+-64' | sed -E 's/libaquamarine\.so=([0-9]+)-64/\1/' | sort -un || true
 }
 
 hyprland_stack_required_aquamarine_so() {
-  pacman -Si hyprland hyprtoolkit 2>/dev/null | hyprland_stack_parse_aquamarine_so
+  {
+    pacman -Si hyprland 2>/dev/null || true
+    pacman -Si hyprtoolkit 2>/dev/null || true
+  } | hyprland_stack_parse_aquamarine_so
 }
 
 hyprland_stack_sync_aquamarine_so() {
-  pacman -Si aquamarine 2>/dev/null | hyprland_stack_parse_aquamarine_so
+  pacman -Si aquamarine 2>/dev/null | hyprland_stack_parse_aquamarine_so || true
 }
 
 hyprland_stack_resolves() {
