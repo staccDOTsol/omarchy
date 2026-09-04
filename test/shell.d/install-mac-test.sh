@@ -23,11 +23,48 @@ done < <(grep -oE '^[[:space:]]*(sudo[[:space:]]+)?omarchy-[a-z0-9-]+' "$install
   grep -oE 'omarchy-[a-z0-9-]+' | sort -u)
 pass "the installer only calls commands that ship in bin/"
 
-grep -F 'sudo omarchy-apply-system --install-user "$USER" --first-install' "$install_script" >/dev/null ||
+grep -F 'sudo omarchy-apply-system --install-user "$install_user" --first-install' "$install_script" >/dev/null ||
   fail "the installer applies system setup as root for a first install"
 grep -F 'omarchy-provision-user --first-install' "$install_script" >/dev/null ||
   fail "the installer finalizes the user for a first install"
+if grep -F 'sudo omarchy-apply-system --install-user "$USER"' "$install_script" >/dev/null; then
+  fail "the installer must not pass \$USER to apply-system; USER=root after su-from-root"
+fi
 pass "the installer runs first-install system and user setup"
+
+# USER=root with EUID of a regular user is how a real M3 install reached
+# apply-system with --install-user root. resolve_install_user follows
+# OMARCHY_INSTALL_USER or id -un, and never returns root.
+resolve_as() {
+  local id_un="$1"
+  shift
+  local bindir actual
+  bindir=$(mktemp -d)
+  cat >"$bindir/id" <<STUB
+#!/bin/bash
+if [[ \$1 == -un ]]; then
+  printf '%s\n' '$id_un'
+  exit 0
+fi
+exec /usr/bin/id "\$@"
+STUB
+  chmod +x "$bindir/id"
+  actual=$(PATH="$bindir:$PATH" "$@" bash -c 'source "$1"; resolve_install_user' _ "$install_script") || actual=""
+  rm -rf "$bindir"
+  printf '%s' "$actual"
+}
+
+[[ $(resolve_as nobody env OMARCHY_INSTALL_USER=stacc) == "stacc" ]] ||
+  fail "OMARCHY_INSTALL_USER names the install user"
+[[ $(resolve_as stacc env -u OMARCHY_INSTALL_USER) == "stacc" ]] ||
+  fail "id -un names the install user when USER is stale"
+[[ $(resolve_as stacc env USER=root -u OMARCHY_INSTALL_USER) == "stacc" ]] ||
+  fail "USER=root is ignored when id -un is a regular user"
+[[ -z $(resolve_as stacc env OMARCHY_INSTALL_USER=root) ]] ||
+  fail "OMARCHY_INSTALL_USER=root is refused"
+[[ -z $(resolve_as root env -u OMARCHY_INSTALL_USER) ]] ||
+  fail "id -un root is refused"
+pass "the installer never hands apply-system a root install user"
 
 # useradd -m ran before omarchy-settings existed, so /etc/skel never seeded
 # $HOME. Without this replay the user gets no shipped configs at all.

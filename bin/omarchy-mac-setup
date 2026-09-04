@@ -4,7 +4,7 @@
 # omarchy:group=setup
 # omarchy:requires-sudo=true
 # omarchy:args=[--encrypt|--no-encrypt] [--user <name>] [--hostname <name>] [--keymap <name>] [--repo <owner/repo>] [--ref <branch>] [--forge <host>] [--status] [--step <name>] [--fonts] [--autologin] [--resume] [--abort] [--allow-omarchy3] [--keep-root-password]
-# omarchy:examples=sudo omarchy-mac-setup --encrypt | omarchy-mac-setup --status
+# omarchy:examples=sudo omarchy-mac-setup --user alice --encrypt | omarchy-mac-setup --status
 
 # One command, run once as root on a fresh Asahi Alarm install, that carries the
 # machine all the way to a booted Omarchy desktop. It asks its questions up
@@ -179,6 +179,91 @@ current_hostname() {
 valid_username() {
   local name="$1"
   [[ $name != "root" && $name =~ ^[a-z_][a-z0-9_-]*$ ]]
+}
+
+# Non-system login accounts: UID 1000–65533 with a real shell. root is never
+# in this list, and neither is nobody.
+login_users() {
+  getent passwd | awk -F: '
+    $3 >= 1000 && $3 < 65534 && $7 !~ /(nologin|false)$/ { print $1 }
+  '
+}
+
+# Pure: name the install owner from --user/conf, SUDO_USER, or a single login
+# account. Returns 1 when the answer would be a guess -- two login users and
+# no explicit name must not silently pick the wrong one.
+resolve_setup_user() {
+  local explicit="$1" sudo_user="$2"
+  shift 2
+  local -a users=("$@")
+  local -a candidates=()
+  local name
+
+  if [[ -n $explicit ]]; then
+    valid_username "$explicit" || return 1
+    printf '%s' "$explicit"
+    return 0
+  fi
+
+  if [[ -n $sudo_user ]] && valid_username "$sudo_user"; then
+    printf '%s' "$sudo_user"
+    return 0
+  fi
+
+  for name in ${users[@]+"${users[@]}"}; do
+    valid_username "$name" && candidates+=("$name")
+  done
+
+  if (( ${#candidates[@]} == 1 )); then
+    printf '%s' "${candidates[0]}"
+    return 0
+  fi
+  return 1
+}
+
+setup_user_needed() {
+  (( resume )) || [[ ${step_only:-} == "omarchy" || ${step_only:-} == "autologin" ]]
+}
+
+# Root is a valid EUID for boot-layout and encryption (and for the systemd
+# resume unit), but it is never the Omarchy install user. A real M3 install
+# reached apply-system with --install-user root because this identity was
+# allowed to stay root; fail fast unless --user, conf, SUDO_USER, or exactly
+# one login account names someone else.
+ensure_setup_user_identity() {
+  if [[ -n $username ]]; then
+    valid_username "$username" ||
+      fail "invalid owner username '$username'. Run as your normal user with sudo only where needed, or pass --user NAME."
+    return 0
+  fi
+
+  setup_user_needed || return 0
+
+  local -a users=()
+  mapfile -t users < <(login_users)
+  if username=$(resolve_setup_user "" "${SUDO_USER:-}" ${users[@]+"${users[@]}"}); then
+    log "Running as root; using '$username' as the install user"
+    return 0
+  fi
+
+  fail "started as root with no recorded install user. Re-run as your normal user with sudo only where needed, or pass --user NAME."
+}
+
+# Drop to the owner for install.sh. sudo -u without forcing USER/LOGNAME can
+# leave USER=root when this script itself is root -- that is the value
+# install.sh used to pass to --install-user.
+run_omarchy_install() {
+  local user="$1" home
+
+  valid_username "$user" ||
+    fail "refusing to run install.sh as '$user'. Re-run as your normal user, or pass --user NAME."
+
+  home=$(getent passwd "$user" | cut -d: -f6)
+  [[ -n $home ]] || fail "user $user has no home directory"
+
+  sudo -u "$user" -H \
+    env USER="$user" LOGNAME="$user" HOME="$home" OMARCHY_INSTALL_USER="$user" \
+    bash -lc 'cd ~/.local/share/omarchy && bash install.sh'
 }
 
 # RFC 1123: each dot-separated label is 1–63 characters of letters, digits and
@@ -1040,11 +1125,13 @@ step_omarchy() {
   grant_passwordless_sudo
 
   log "Running install.sh as $username -- this takes a while (AUR builds)."
-  # Run from a login shell so the install sees a normal user environment. The
-  # status is captured rather than left to set -e: a failed install must still
-  # give the NOPASSWD rule back before anything else happens.
+  # Re-exec as the owner with USER/LOGNAME forced. A root caller that only
+  # used `sudo -u` used to leak USER=root into install.sh, which then called
+  # apply-system --install-user root and aborted after the package phase.
+  # The status is captured rather than left to set -e: a failed install must
+  # still give the NOPASSWD rule back before anything else happens.
   local status=0
-  sudo -u "$username" -i bash -lc 'cd ~/.local/share/omarchy && bash install.sh' || status=$?
+  run_omarchy_install "$username" || status=$?
   revoke_passwordless_sudo
   (( status == 0 )) || fail "install.sh exited $status -- fix it and run '$SELF --resume'"
 
@@ -1250,7 +1337,12 @@ main() {
     case $1 in
       --encrypt) encrypt_flag=1; want_encrypt=1 ;;
       --no-encrypt) encrypt_flag=0; want_encrypt=0 ;;
-      --user) username=${2:?--user needs a name}; shift ;;
+      --user)
+        username=${2:?--user needs a name}
+        valid_username "$username" ||
+          fail "invalid owner username: $username. Use a normal login, not root."
+        shift
+        ;;
       --hostname) hostname=${2:?--hostname needs a name}; shift ;;
       --keymap)
         keymap=${2:?--keymap needs a name}
@@ -1290,6 +1382,10 @@ main() {
     fetch_self
     exec bash "$SELF" "${invocation[@]}" </dev/tty
   fi
+
+  # After the piped re-exec so a curl | bash run names the user on the copy
+  # that does the work. --status and --help already returned above.
+  ensure_setup_user_identity
 
   trap on_exit EXIT
   quiet_console
