@@ -56,8 +56,25 @@ ensure_gum() {
     warn "Could not install gum; falling back to plain output."
 }
 
+# Never trust $USER: a root shell that switched accounts without a login
+# environment leaves USER=root while EUID is the regular user. That is how
+# --install-user became root on a real M3 Mac and apply-system aborted after
+# the package phase. id -un follows EUID; OMARCHY_INSTALL_USER is the
+# explicit override omarchy-mac-setup passes when it re-execs this script.
+resolve_install_user() {
+  local candidate="${OMARCHY_INSTALL_USER:-}"
+
+  if [[ -z $candidate ]]; then
+    candidate=$(id -un)
+  fi
+  [[ -n $candidate && $candidate != "root" ]] || return 1
+  printf '%s' "$candidate"
+}
+
 check_preconditions() {
   (( EUID != 0 )) || fail "Run this as your regular user, not as root. It uses sudo where needed."
+  resolve_install_user >/dev/null ||
+    fail "Cannot install Omarchy as root. Run as your normal user with sudo only where needed, or set OMARCHY_INSTALL_USER to that user."
   [[ $(uname -m) == "aarch64" ]] || fail "This is the Apple Silicon installer. On x86 machines install from the ISO."
   command -v pacman >/dev/null || fail "This installer only supports Arch-based systems."
   command -v sudo >/dev/null || fail "sudo is required."
@@ -254,8 +271,12 @@ seed_user_defaults() {
 }
 
 run_system_setup() {
+  local install_user
+  install_user=$(resolve_install_user) ||
+    fail "Cannot install Omarchy as root. Run as your normal user with sudo only where needed, or set OMARCHY_INSTALL_USER to that user."
+
   log "Running Omarchy system setup"
-  sudo omarchy-apply-system --install-user "$USER" --first-install
+  sudo omarchy-apply-system --install-user "$install_user" --first-install
 
   log "Running Omarchy user setup"
   omarchy-provision-user --first-install
@@ -301,4 +322,8 @@ main() {
   log "Install complete. Reboot to start Omarchy."
 }
 
-main "$@"
+# Sourcing exposes resolve_install_user to the tests. Piped through `bash -s`
+# there is no BASH_SOURCE -- that is still an execution, so it must run.
+if [[ -z ${BASH_SOURCE[0]:-} || ${BASH_SOURCE[0]} == "$0" ]]; then
+  main "$@"
+fi

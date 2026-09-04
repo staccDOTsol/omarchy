@@ -185,6 +185,93 @@ check "a regular owner username is accepted" valid_username sfreiburg
 check "root is refused as the owner" not valid_username root
 check "a username beginning with a digit is refused" not valid_username 1owner
 
+echo
+echo "=== a root caller cannot become the install user ==="
+
+# A real M3 run started as root, reached install.sh with USER=root, and
+# apply-system refused --install-user root after the package phase. The
+# identity has to be resolved -- or refused -- before that call.
+
+resolved() { resolve_setup_user "$@"; }
+unresolved() { ! resolve_setup_user "$@" >/dev/null; }
+
+check "--user wins over SUDO_USER and login accounts" \
+  [ "$(resolved stacc alarm stacc extra)" = "stacc" ]
+check "an explicit root is refused rather than used" \
+  unresolved root stacc stacc
+check "SUDO_USER is used when nothing was passed" \
+  [ "$(resolved "" stacc alarm stacc)" = "stacc" ]
+check "SUDO_USER=root is not an owner" \
+  [ "$(resolved "" root stacc)" = "stacc" ]
+check "a single login user is used when nothing else is known" \
+  [ "$(resolved "" "" stacc)" = "stacc" ]
+check "two login users without --user is ambiguous" \
+  unresolved "" "" alarm stacc
+check "no login users and no --user is unresolved" \
+  unresolved "" ""
+check "root in the login list is ignored" \
+  [ "$(resolved "" "" root stacc)" = "stacc" ]
+
+identity_run() {
+  local resume_flag="$1" step="$2" name="$3" sudo_name="$4"
+  shift 4
+  local fake_users
+  fake_users=$(printf '%s\n' "$@")
+  (
+    resume=$resume_flag
+    step_only=$step
+    username=$name
+    SUDO_USER=$sudo_name
+    login_users() { printf '%s\n' "$fake_users"; }
+    log() { printf 'LOG: %s\n' "$*"; }
+    fail() { printf 'FAIL: %s\n' "$*"; exit 1; }
+    ensure_setup_user_identity
+    printf 'USER:%s\n' "$username"
+  )
+}
+
+check "an interactive first run still asks when no user is known" \
+  [ "$(identity_run 0 "" "" "" alarm stacc)" = "USER:" ]
+resume_without_user_fails() {
+  grep -q -- '--user' <<<"$(identity_run 1 "" "" "" alarm stacc 2>&1 || true)"
+}
+root_owner_is_refused() {
+  grep -q 'normal user' <<<"$(identity_run 0 omarchy root "" stacc 2>&1 || true)"
+}
+
+check "--resume as root with no recorded user fails rather than guessing" \
+  resume_without_user_fails
+check "--resume uses a single login user when conf is empty" \
+  [ "$(identity_run 1 "" "" "" stacc)" = $'LOG: Running as root; using \'stacc\' as the install user\nUSER:stacc' ]
+check "--step omarchy refuses root recorded as the owner" root_owner_is_refused
+check "a recorded owner is kept" \
+  [ "$(identity_run 1 "" stacc "" alarm)" = "USER:stacc" ]
+
+install_run() {
+  local user="$1"
+  (
+    fail() { printf 'FAIL: %s\n' "$*"; exit 1; }
+    getent() { [[ $user == "stacc" ]] && printf 'stacc:x:1000:1000::/home/stacc:/bin/bash\n'; }
+    sudo() { printf 'SUDO: %s\n' "$*"; }
+    run_omarchy_install "$user"
+  )
+}
+
+install_is_reexecd_as_owner() {
+  grep -q 'SUDO: -u stacc -H env USER=stacc LOGNAME=stacc HOME=/home/stacc OMARCHY_INSTALL_USER=stacc' \
+    <<<"$(install_run stacc)"
+}
+root_install_is_refused() {
+  grep -q 'install.sh as' <<<"$(install_run root 2>&1 || true)"
+}
+
+check "install.sh is re-exec'd as the owner, not as root" install_is_reexecd_as_owner
+check "install.sh is refused when the owner is root" root_install_is_refused
+check "the Omarchy step never passes USER from the parent environment" \
+  grep -qF 'run_omarchy_install "$username"' "$TOOL"
+check "the Omarchy step forces OMARCHY_INSTALL_USER" \
+  grep -qF 'OMARCHY_INSTALL_USER="$user"' "$TOOL"
+
 valid() {
   valid_hostname "$1"
 }

@@ -69,7 +69,7 @@ require_root() {
 }
 
 valid_username() {
-    [[ "$1" =~ ^[a-z_][a-z0-9_-]*$ ]]
+    [[ "$1" != "root" && "$1" =~ ^[a-z_][a-z0-9_-]*$ ]]
 }
 
 prompt_username() {
@@ -179,7 +179,11 @@ run_installer() {
     local username="$1"
     print_step "Running Omarchy installer as $username"
     print_info "You may be prompted for the user's sudo password during installation."
-    su - "$username" -c "bash -lc 'cd ~/.local/share/omarchy && bash install.sh'"
+    [[ $username != "root" ]] || {
+        print_error "Refusing to run install.sh as root."
+        exit 1
+    }
+    su - "$username" -c "OMARCHY_INSTALL_USER=${username} bash -lc 'cd ~/.local/share/omarchy && bash install.sh'"
 }
 
 main() {
