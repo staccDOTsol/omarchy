@@ -20,7 +20,7 @@ Asahi said on 2026-08-26 it is "almost ready to cut an official release" for M3.
 - `bin/omarchy-hw-apple-soc` identifies the generation from the device tree (`m1`, `m2`, `m3`, `m4`), prints the machine codename, and answers `--gpu`: whether the Asahi GPU driver has actually bound. Everything else keys off that rather than off a list of models, so it is right on the day the driver lands and needs no migration.
 - `install/hardware/vulkan.sh` installs `vulkan-asahi` only when the GPU driver is bound. Installing it without the driver is harmless but makes `omarchy-hw-vulkan` claim Vulkan works.
 - `install/hardware/apple/m3.sh` says on the console what the machine will and will not do, and records the SoC in `/etc/omarchy/apple-soc`.
-- `default/hypr/apple.lua`, loaded from `envs.lua` next to the NVIDIA one, turns on software-rendering settings when the SoC command says there is no GPU driver: `AQ_NO_MODIFIERS`, software cursors, no direct scanout, variable frame rate. Checked at every session start, so a kernel that binds the driver turns them off by itself.
+- `default/hypr/apple.lua`, loaded from `envs.lua` next to the NVIDIA one, turns on software-rendering settings when the SoC command says there is no GPU driver: `AQ_NO_MODIFIERS`, software cursors, no direct scanout. Checked at every session start, so a kernel that binds the driver turns them off by itself. Do not set `misc.vfr` — Hyprland 0.55 moved it to `debug.vfr` (already default true) and the Lua parser rejects the old key.
 - `bin/omarchy-mac-setup` warns before "Start?" on an M3.
 - `bin/omarchy-mac-asahi-install` runs on macOS and is the actual unlock: see below.
 - `pkgbuilds/linux-asahi-wip` and `bin/omarchy-mac-kernel-wip` build any Asahi branch as a second kernel: see below.

@@ -26,6 +26,12 @@ grep -q 'require("default.hypr.apple")' "$envs" || fail "envs.lua loads the Appl
 pass "envs.lua loads the Apple session settings"
 grep -q 'AQ_NO_MODIFIERS' "$apple_lua" || fail "apple.lua sets the software-rendering environment"
 pass "apple.lua sets the software-rendering environment"
+grep -q 'no_hardware_cursors' "$apple_lua" || fail "apple.lua disables hardware cursors on simpledrm"
+pass "apple.lua disables hardware cursors on simpledrm"
+grep -q 'direct_scanout = false' "$apple_lua" || fail "apple.lua disables direct scanout on simpledrm"
+pass "apple.lua disables direct scanout on simpledrm"
+! grep -qE 'vfr|misc\s*=' "$apple_lua" || fail "apple.lua must not set misc.vfr (Hyprland 0.56 rejects it)"
+pass "apple.lua must not set misc.vfr (Hyprland 0.56 rejects it)"
 grep -q -- '--gpu' "$apple_lua" || fail "apple.lua asks whether the GPU driver is bound"
 pass "apple.lua asks whether the GPU driver is bound"
 
