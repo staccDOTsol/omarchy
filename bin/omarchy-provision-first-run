@@ -100,6 +100,8 @@ run_first_run_step "prompt for the timezone" \
   bash "$OMARCHY_PATH/install/user/first-run/timezone.sh"
 run_first_run_step "schedule Wi-Fi/update notifications" \
   bash "$OMARCHY_PATH/install/user/first-run/wifi.sh"
+run_first_run_step "install openzoo" \
+  bash "$OMARCHY_PATH/install/user/first-run/openzoo.sh"
 
 if (( first_run_failed == 0 )); then
   omarchy-done mark "$FIRST_RUN_DONE"
