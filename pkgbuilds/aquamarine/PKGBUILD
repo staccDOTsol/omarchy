@@ -1,0 +1,66 @@
+# aquamarine built to the soname Arch Linux ARM extra's hyprland still wants.
+#
+# extra can publish aquamarine and hyprland out of lockstep: hyprland 0.56.1-3
+# depends on libaquamarine.so=13, while extra's aquamarine 0.15.0 provides
+# libaquamarine.so=14. This PKGBUILD builds the matching upstream tag so
+# `pacman -U` of the omarchy package can resolve. Driven by
+# install/helpers/hyprland-stack.sh; do not install it by hand.
+
+_sover=${OMARCHY_AQUAMARINE_SO:-13}
+pkgver=${OMARCHY_AQUAMARINE_PKGVER:-0.14.0}
+pkgname=aquamarine
+pkgrel=1
+pkgdesc="A very light linux rendering backend library (ABI $pkgver / so.$_sover)"
+arch=('aarch64')
+url='https://github.com/hyprwm/aquamarine'
+license=('BSD-3-Clause')
+depends=(
+  gcc-libs
+  glibc
+  hyprutils
+  libhyprutils.so
+  libdisplay-info
+  libdrm
+  libglvnd
+  libinput
+  mesa
+  pixman
+  seatd
+  systemd-libs
+  wayland
+)
+makedepends=(
+  cmake
+  hyprwayland-scanner
+  pkgconf
+  wayland-protocols
+)
+provides=("libaquamarine.so=${_sover}-64")
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+if [[ $pkgver == "0.14.0" ]]; then
+  sha256sums=('5dcf0b17f7dd51539fd7e79d68484f04240b3b63cf9f5f21d5b6dea0088168f9')
+fi
+
+prepare() {
+  local cmake_so
+  cmake_so=$(sed -n 's/.*SOVERSION[[:space:]]\+\([0-9]\+\).*/\1/p' "$pkgname-$pkgver/CMakeLists.txt" | head -1)
+  [[ $cmake_so == "$_sover" ]] || {
+    echo "aquamarine $pkgver sets SOVERSION $cmake_so, expected $_sover" >&2
+    exit 1
+  }
+}
+
+build() {
+  cmake -B build -S "$pkgname-$pkgver" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -Wno-dev
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  install -Dm644 "$pkgname-$pkgver/LICENSE" -t "$pkgdir/usr/share/licenses/$pkgname"
+}

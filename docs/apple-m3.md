@@ -42,6 +42,8 @@ It fetches Asahi Alarm's installer package and image list from asahi-alarm.org a
 
 Then boot Arch and run `omarchy-mac-setup` as on any other Mac.
 
+If `install.sh` dies at "Installing the Omarchy packages" with `cannot resolve "libaquamarine.so=…"` (and then hyprtoolkit / hyprland-guiutils / hyprland), Arch Linux ARM extra published hyprland and aquamarine out of lockstep. The installer now repairs that before `pacman -U`. Update the checkout and run `omarchy-mac-setup --resume`.
+
 The images are built from the released kernel, so the installed system is the one described above: no display driver, software rendering. The image built on 2026-08-31 carries linux-asahi 7.1.6 and m1n1 1.6.1, both of which have the M3 device trees; `update-m1n1` concatenates every `t6*` and `t81*` device tree into the boot image, so the right one reaches m1n1.
 
 Sizing: the installer keeps 38 GB free inside the macOS container for updates, and macOS cannot shrink below what it uses. Delete from macOS first if Linux needs more.
