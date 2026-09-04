@@ -58,7 +58,7 @@ STUB
   fail "OMARCHY_INSTALL_USER names the install user"
 [[ $(resolve_as stacc env -u OMARCHY_INSTALL_USER) == "stacc" ]] ||
   fail "id -un names the install user when USER is stale"
-[[ $(resolve_as stacc env USER=root -u OMARCHY_INSTALL_USER) == "stacc" ]] ||
+[[ $(resolve_as stacc env -u OMARCHY_INSTALL_USER USER=root) == "stacc" ]] ||
   fail "USER=root is ignored when id -un is a regular user"
 [[ -z $(resolve_as stacc env OMARCHY_INSTALL_USER=root) ]] ||
   fail "OMARCHY_INSTALL_USER=root is refused"

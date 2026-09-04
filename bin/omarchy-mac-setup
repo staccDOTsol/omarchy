@@ -231,7 +231,7 @@ setup_user_needed() {
 # allowed to stay root; fail fast unless --user, conf, SUDO_USER, or exactly
 # one login account names someone else.
 ensure_setup_user_identity() {
-  if [[ -n $username ]]; then
+  if [[ -n ${username:-} ]]; then
     valid_username "$username" ||
       fail "invalid owner username '$username'. Run as your normal user with sudo only where needed, or pass --user NAME."
     return 0

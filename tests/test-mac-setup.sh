@@ -232,12 +232,18 @@ identity_run() {
 
 check "an interactive first run still asks when no user is known" \
   [ "$(identity_run 0 "" "" "" alarm stacc)" = "USER:" ]
+resume_without_user_fails() {
+  grep -q -- '--user' <<<"$(identity_run 1 "" "" "" alarm stacc 2>&1 || true)"
+}
+root_owner_is_refused() {
+  grep -q 'normal user' <<<"$(identity_run 0 omarchy root "" stacc 2>&1 || true)"
+}
+
 check "--resume as root with no recorded user fails rather than guessing" \
-  matches 'FAIL:.*--user' "$(identity_run 1 "" "" "" alarm stacc 2>&1 || true)"
+  resume_without_user_fails
 check "--resume uses a single login user when conf is empty" \
   [ "$(identity_run 1 "" "" "" stacc)" = $'LOG: Running as root; using \'stacc\' as the install user\nUSER:stacc' ]
-check "--step omarchy refuses root recorded as the owner" \
-  matches 'FAIL:.*normal user' "$(identity_run 0 omarchy root "" stacc 2>&1 || true)"
+check "--step omarchy refuses root recorded as the owner" root_owner_is_refused
 check "a recorded owner is kept" \
   [ "$(identity_run 1 "" stacc "" alarm)" = "USER:stacc" ]
 
@@ -251,11 +257,16 @@ install_run() {
   )
 }
 
-check "install.sh is re-exec'd as the owner, not as root" \
-  matches 'SUDO: -u stacc -H env USER=stacc LOGNAME=stacc HOME=/home/stacc OMARCHY_INSTALL_USER=stacc' \
-    "$(install_run stacc)"
-check "install.sh is refused when the owner is root" \
-  matches 'FAIL:.*install.sh as' "$(install_run root 2>&1 || true)"
+install_is_reexecd_as_owner() {
+  grep -q 'SUDO: -u stacc -H env USER=stacc LOGNAME=stacc HOME=/home/stacc OMARCHY_INSTALL_USER=stacc' \
+    <<<"$(install_run stacc)"
+}
+root_install_is_refused() {
+  grep -q 'install.sh as' <<<"$(install_run root 2>&1 || true)"
+}
+
+check "install.sh is re-exec'd as the owner, not as root" install_is_reexecd_as_owner
+check "install.sh is refused when the owner is root" root_install_is_refused
 check "the Omarchy step never passes USER from the parent environment" \
   grep -qF 'run_omarchy_install "$username"' "$TOOL"
 check "the Omarchy step forces OMARCHY_INSTALL_USER" \
