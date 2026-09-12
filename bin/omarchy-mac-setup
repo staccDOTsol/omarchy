@@ -1148,16 +1148,26 @@ print_status() {
 
 # The M3 generation boots the public Asahi kernel but has no display or GPU
 # driver yet, so the desktop this installs runs in software on the firmware
-# framebuffer. Said before "Start?", from the device tree directly: the SoC
-# command lives in the checkout, which does not exist yet at this point.
+# framebuffer. Sleep is also unavailable until full DCP support lands. Said
+# before "Start?", from the device tree directly: the SoC command lives in the
+# checkout, which does not exist yet at this point.
 notice_apple_m3() {
-  local compatible=${OMARCHY_APPLE_COMPATIBLE:-/proc/device-tree/compatible}
+  local compatible=${OMARCHY_APPLE_COMPATIBLE:-/proc/device-tree/compatible} soc
   [[ -f $compatible ]] || return 0
-  tr '\0' '\n' <"$compatible" | grep -qxE 'apple,(t8122|t6030|t6031|t6032|t6034)' || return 0
-  warn "This is an M3-generation Mac. Asahi has not released for it: the desktop"
-  warn "will render in software with no brightness control and no external"
-  warn "displays until the M3 display and GPU drivers land. See docs/apple-m3.md"
-  warn "in the checkout, and omarchy-mac-kernel-wip for trying a newer kernel."
+  soc=$(tr '\0' '\n' <"$compatible" | sed -nE 's/^(apple,(t8122|t6030|t6031|t6032|t6034))$/\1/p')
+  [[ -n $soc ]] || return 0
+  if [[ $soc == "apple,t6032" ]]; then
+    warn "This is an M3 Ultra Mac Studio. Asahi does not support this model yet."
+    warn "The M3 Ultra device tree is present, but the Expert-mode M3 release"
+    warn "does not include it. See docs/apple-m3.md in the checkout."
+    echo
+    return 0
+  fi
+  warn "This is an M3-generation Mac. Asahi support is gated behind Expert mode:"
+  warn "the desktop will render in software with no brightness control or external"
+  warn "displays, and sleep is unavailable until full DCP support lands. See"
+  warn "docs/apple-m3.md in the checkout, and omarchy-mac-kernel-wip for trying"
+  warn "a newer kernel."
   echo
 }
 

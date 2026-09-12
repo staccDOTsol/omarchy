@@ -6,14 +6,14 @@ State of Omarchy Mac on M3, M3 Pro, M3 Max and M3 Ultra Macs, what the repo does
 
 Asahi's kernel (`asahi` branch, tagged releases from 7.1.6 on, which is what Asahi Alarm ships) carries device trees for every M3 machine, including the 14 and 16-inch MacBook Pros (`t6030-j514s`, `t6030-j516s`), the M3 Max variants (`t6031`, `t6034`), the plain M3 machines (`t8122`) and the Mac Studio M3 Ultra (`t6032`, `j575d`). m1n1 1.6.1 boots them. U-Boot knows the SoC. The Asahi installer lists every M3 device, gated to expert mode, against the macOS 14.8.3 firmware. Asahi's own M3 release still excludes M3 Ultra.
 
-What boots on that kernel: CPU frequency scaling, NVMe, PCIe, Wi-Fi, Bluetooth, keyboard, trackpad, speakers and microphones, USB and Thunderbolt, battery, suspend. Asahi's own table: https://asahilinux.org/docs/platform/feature-support/m3/
+Asahi merged official M3 installer support on 2026-09-06, gated behind Expert mode. What works on that release: CPU frequency scaling, NVMe, PCIe, Wi-Fi, Bluetooth, keyboard, trackpad, speakers and microphones, webcam, USB up to 10 Gb/s, battery and hardware video decoding including AV1. Sleep currently does not work because of the firmware-provided framebuffer. The Mac Studio M3 Ultra is not yet supported. See Asahi's [M3 announcement](https://asahilinux.org/2026/09/m2-episode-1/) and [feature table](https://asahilinux.org/docs/platform/feature-support/m3/).
 
 What does not exist in any public tree:
 
-- **The display driver for M3.** The M3 needs the DCP firmware ABI from macOS 14.7/14.8.3. A first cut of that ABI is public (`iomfb_v14_7` in `asahi-wip-7.2` and in James Calligeros' `dcp/14.8.3` branch), but no branch wires it to the M3 device trees. The Asahi progress report for Linux 7.2 says the M3 DCP work is "almost at feature parity"; it is on the developers' machines. Without it the kernel draws on the framebuffer the boot firmware leaves behind (simpledrm): the internal panel works at native resolution, there is no brightness control, no external display, and sleep may not bring the panel back.
+- **The display driver for M3.** The M3 needs the DCP firmware ABI from macOS 14.7/14.8.3. A first cut of that ABI is public (`iomfb_v14_7` in `asahi-wip-7.2` and in James Calligeros' `dcp/14.8.3` branch), but no branch wires it to the M3 device trees. Without it the kernel draws on the framebuffer the boot firmware leaves behind (simpledrm): the internal panel works at native resolution, there is no brightness control or external display support, and sleep does not work.
 - **The GPU driver for M3 (G15).** The Asahi DRM driver knows G13 (M1) and G14 (M2); its hardware table has no M3 entry in `asahi`, `asahi-wip`, any `gpu/*` branch, or any core developer's fork. Mesa has no G15 either. Asahi lists the M3 GPU as "TBA". Everything renders through llvmpipe.
 
-Asahi said on 2026-08-26 it is "almost ready to cut an official release" for M3. That release will bring the display driver. The GPU is a separate, later piece of work.
+The display work remains separate from the GPU. The current Expert-mode release does not provide either driver, so Omarchy uses software rendering and has no full display-controller support.
 
 ## What the repo does on an M3
 

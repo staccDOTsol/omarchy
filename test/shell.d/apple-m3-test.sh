@@ -58,9 +58,17 @@ pass "omarchy-mac-asahi-install stays within macOS bash 3.2"
 grep -q 'cdn.asahilinux.org/installer' "$installer" ||
   fail "omarchy-mac-asahi-install can fall back to Asahi's own installer package"
 pass "omarchy-mac-asahi-install can fall back to Asahi's own installer package"
+grep -q 'M3 Ultra Macs are not supported' "$installer" ||
+  fail "omarchy-mac-asahi-install rejects unsupported M3 Ultra Macs"
+pass "omarchy-mac-asahi-install reports the M3 Ultra support boundary"
 grep -q 'export EXPERT=1' "$installer" ||
   fail "omarchy-mac-asahi-install turns on the expert-mode question for an M3"
 pass "omarchy-mac-asahi-install turns on the expert-mode question for an M3"
+grep -q 'sleep, Touch ID' "$installer" ||
+  fail "the M3 installer briefing warns that sleep is unavailable"
+! grep -q 'microphones, USB, battery, sleep' "$installer" ||
+  fail "the M3 installer briefing does not claim that sleep works"
+pass "the M3 installer briefing reports current sleep support"
 
 test_tmp=$(mktemp -d)
 trap 'rm -rf "$test_tmp"' EXIT
@@ -130,8 +138,8 @@ pass "patching is idempotent"
 
 [[ $(mac_generation_for j516sap) == "m3" ]] || fail "J516s is an M3 Pro"
 pass "J516s is an M3 Pro"
-[[ $(mac_generation_for j575dap) == "m3" ]] || fail "J575d is an M3 Ultra"
-pass "J575d is an M3 Ultra"
+[[ $(mac_generation_for j575dap) == "m3ultra" ]] || fail "J575d is an unsupported M3 Ultra"
+pass "J575d is an unsupported M3 Ultra"
 [[ $(mac_generation_for j316sap) == "m1" ]] || fail "J316s is an M1 Pro"
 pass "J316s is an M1 Pro"
 [[ $(mac_generation_for j999ap) == "unknown" ]] || fail "an unlisted target is unknown"
@@ -140,6 +148,17 @@ pass "an unlisted target is unknown"
 grep -q 't6032' "$ROOT/bin/omarchy-mac-setup" ||
   fail "the guided setup warns on an M3 Ultra as well as M3/Pro/Max"
 pass "the guided setup warns on an M3 Ultra as well as M3/Pro/Max"
+grep -q 'sleep is unavailable' "$ROOT/bin/omarchy-mac-setup" ||
+  fail "the guided setup warns that M3 sleep is unavailable"
+pass "the guided setup reports current sleep support"
+grep -q 'M3 Ultra Mac Studio' "$ROOT/bin/omarchy-mac-setup" ||
+  fail "the guided setup warns that M3 Ultra is unsupported"
+pass "the guided setup reports M3 Ultra support boundary"
+grep -q 'Sleep currently does not work' "$ROOT/docs/apple-m3.md" ||
+  fail "the M3 documentation reports current sleep support"
+! grep -q 'battery, suspend' "$ROOT/docs/apple-m3.md" ||
+  fail "the M3 documentation does not claim that suspend works"
+pass "the M3 documentation reports current sleep support"
 
 # UWSM, not apple.lua, must export AQ_NO_MODIFIERS before Aquamarine starts.
 stub_soc="$test_tmp/bin/omarchy-hw-apple-soc"

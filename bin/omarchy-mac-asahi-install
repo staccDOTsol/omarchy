@@ -57,7 +57,8 @@ mac_generation_for() {
   local target
   target=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
   case $target in
-    j433ap | j434ap | j504ap | j575dap | j613ap | j615ap | j514sap | j514cap | j514map | j516sap | j516cap | j516map) echo m3 ;;
+    j433ap | j434ap | j504ap | j613ap | j615ap | j514sap | j514cap | j514map | j516sap | j516cap | j516map) echo m3 ;;
+    j575dap) echo m3ultra ;;
     j413ap | j493ap | j414cap | j414sap | j416cap | j416sap | j473ap | j474sap | j415ap | j475cap | j475dap | j180dap) echo m2 ;;
     j274ap | j293ap | j313ap | j456ap | j457ap | j314cap | j314sap | j316cap | j316sap | j375cap | j375dap) echo m1 ;;
     *) echo unknown ;;
@@ -137,13 +138,13 @@ fetch_installer() {
 print_m3_briefing() {
   cat <<BRIEF
 
-  This is an M3-generation Mac. Asahi Linux has not released for it yet; the
-  installer runs only in expert mode and the resulting system has:
+  This is an M3-generation Mac. Asahi Linux supports it in expert mode; the
+  resulting system has:
 
     working   CPU, NVMe, Wi-Fi, Bluetooth, keyboard, trackpad, speakers,
-              microphones, USB, battery, sleep
+              microphones, USB, battery, webcam, video decoding
     missing   GPU acceleration (software rendering), display brightness,
-              external displays, webcam, Touch ID
+              external displays, sleep, Touch ID
 
   When the installer asks:
     "Enable expert mode?"          answer  y   (M3 requires it)
@@ -180,6 +181,9 @@ main() {
 
   generation=$(mac_generation)
   log "Mac: $(sysctl -n hw.model) ($(sysctl -n hw.target)), $(sysctl -n machdep.cpu.brand_string), generation $generation"
+  if [[ $generation == "m3ultra" ]]; then
+    fail "M3 Ultra Macs are not supported by Asahi yet"
+  fi
   if [[ $generation == "unknown" ]]; then
     warn "This Mac is not in the table; running the stock installer unchanged."
     patch=0
