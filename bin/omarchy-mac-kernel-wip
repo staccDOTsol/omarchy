@@ -42,7 +42,9 @@ m1n1_boot_bin() {
   fi
   local candidate
   for candidate in /boot/m1n1/boot.bin /boot/efi/m1n1/boot.bin; do
-    if [[ -e $candidate ]]; then
+    # If boot.bin is missing but a saved image remains, keep its path
+    # discoverable so --rollback-boot can restore it.
+    if [[ -e $candidate || -e ${candidate}.omarchy-pre-wip || -e ${candidate}.old ]]; then
       printf '%s\n' "$candidate"
       return 0
     fi
@@ -61,7 +63,7 @@ snapshot_boot_bin() {
 }
 
 rollback_boot_bin() {
-  local boot previous
+  local boot previous temporary
   boot=$(m1n1_boot_bin) || return 1
   if [[ -e ${boot}.omarchy-pre-wip ]]; then
     previous=${boot}.omarchy-pre-wip
@@ -70,7 +72,17 @@ rollback_boot_bin() {
   else
     return 1
   fi
-  sudo cp -a -- "$previous" "$boot" || return 1
+  # Copy beside the destination and rename within the ESP. A direct cp can
+  # leave a truncated boot image if the copy is interrupted.
+  temporary=$(sudo mktemp "${boot}.omarchy-restore.XXXXXX") || return 1
+  sudo cp -a -- "$previous" "$temporary" || {
+    sudo rm -f -- "$temporary"
+    return 1
+  }
+  sudo mv -f -- "$temporary" "$boot" || {
+    sudo rm -f -- "$temporary"
+    return 1
+  }
   log "Restored $boot from $(basename "$previous")"
 }
 
@@ -89,6 +101,15 @@ warn_shared_boot_image() {
   log "kernel's DTBs into that image, so the released linux-asahi entry is not a"
   log "safe fallback. Before rebooting: omarchy-mac-kernel-wip --rollback-boot"
   log "After a failed boot, from macOS copy m1n1/boot.bin.old over boot.bin."
+}
+
+install_wip_package() {
+  local pkg="$1"
+  snapshot_boot_bin ||
+    fail "could not snapshot the current m1n1 boot image; refusing to install the WIP kernel without a recovery copy"
+  log "Installing $(basename "$pkg")"
+  sudo pacman -U --noconfirm "$pkg"
+  refresh_boot
 }
 
 main() {
@@ -158,10 +179,7 @@ main() {
 
   pkg=$(ls -1t "$build_dir"/linux-asahi-wip-*.pkg.tar.* | grep -v '\.sig$' | head -1)
   [[ -n $pkg ]] || fail "no package was produced"
-  snapshot_boot_bin || log "could not snapshot boot.bin; if the new DTBs do not boot, restore boot.bin.old from macOS"
-  log "Installing $(basename "$pkg")"
-  sudo pacman -U --noconfirm "$pkg"
-  refresh_boot
+  install_wip_package "$pkg"
 
   log "Installed. Reboot and pick the linux-asahi-wip entry in GRUB."
   warn_shared_boot_image
