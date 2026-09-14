@@ -19,6 +19,9 @@ cat >"$stub_bin/sudo" <<'SH'
 if [[ ${TEST_FAIL_BOOT_COPY:-0} == "1" && $1 == "cp" ]]; then
   exit 1
 fi
+if [[ ${TEST_FAIL_BOOT_MOVE:-0} == "1" && $1 == "mv" ]]; then
+  exit 1
+fi
 exec "$@"
 SH
 chmod +x "$stub_bin/sudo"
@@ -64,6 +67,37 @@ run_helper rollback_boot_bin || fail "rollback falls back to boot.bin.old"
 cmp -s "$boot" <(printf 'update-m1n1-old\n') || fail "rollback uses update-m1n1's boot.bin.old"
 pass "rollback_boot_bin falls back to boot.bin.old"
 
+# Recovery must still find the ESP path when a failed update removed boot.bin
+# but left the saved image behind.
+printf 'released-dtbs\n' >"${boot}.omarchy-pre-wip"
+rm -f "$boot" "$boot.old"
+run_helper rollback_boot_bin || fail "rollback_boot_bin finds a saved image when boot.bin is missing"
+cmp -s "$boot" <(printf 'released-dtbs\n') || fail "rollback restores a missing boot.bin from the saved image"
+pass "rollback restores boot.bin when update-m1n1 left only the saved image"
+
+# A stale restore directory from an interrupted run must not be reused as the
+# copy destination.
+printf 'wip-dtbs\n' >"$boot"
+printf 'released-dtbs\n' >"${boot}.omarchy-pre-wip"
+mkdir "${boot}.omarchy-restore.stale"
+run_helper rollback_boot_bin || fail "rollback ignores a stale restore directory"
+cmp -s "$boot" <(printf 'released-dtbs\n') || fail "rollback replaces boot.bin despite a stale restore directory"
+[[ -d ${boot}.omarchy-restore.stale ]] || fail "rollback does not remove an unrelated restore directory"
+pass "rollback uses a fresh temporary file beside stale restore state"
+rmdir "${boot}.omarchy-restore.stale"
+
+# The destination is replaced only after the copy completes; a failed rename
+# leaves the previous image intact and cleans up the temporary file.
+printf 'wip-dtbs\n' >"$boot"
+printf 'released-dtbs\n' >"${boot}.omarchy-pre-wip"
+if TEST_FAIL_BOOT_MOVE=1 run_helper rollback_boot_bin >"$test_tmp/rollback-move-log" 2>&1; then
+  fail "rollback_boot_bin reports a failed atomic replacement"
+fi
+cmp -s "$boot" <(printf 'wip-dtbs\n') || fail "failed atomic replacement leaves the current boot image intact"
+compgen -G "${boot}.omarchy-restore.*" >/dev/null &&
+  fail "failed atomic replacement cleans up its temporary image"
+pass "rollback keeps the current boot image intact when replacement fails"
+
 printf 'wip-dtbs\n' >"$boot"
 if TEST_FAIL_BOOT_COPY=1 run_helper conditional_rollback >"$test_tmp/rollback-log" 2>&1; then
   fail "rollback_boot_bin fails when copying the saved image fails"
@@ -72,7 +106,7 @@ fi
 cmp -s "$boot" <(printf 'wip-dtbs\n') || fail "failed rollback leaves the boot image unchanged"
 pass "rollback_boot_bin reports copy failures even in a conditional"
 
-rm -f "${boot}.old"
+rm -f "${boot}.old" "${boot}.omarchy-pre-wip"
 ! run_helper rollback_boot_bin || fail "rollback fails when no saved image exists"
 pass "rollback_boot_bin fails closed without a saved image"
 
